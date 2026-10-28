@@ -1,0 +1,44 @@
+# Levantar todo:   docker compose up -d --build
+# Ver logs:        docker compose logs -f app
+# Detener:         docker compose down        (los datos quedan en el volumen pgdata)
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-reservas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD en el archivo .env}
+      POSTGRES_DB: ${POSTGRES_DB:-reserva_salas}
+      TZ: America/Santiago
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    # Descomente solo si necesita conectarse a la BD desde fuera de Docker (ej. DBeaver/pgAdmin)
+    # ports:
+    #   - "5432:5432"
+
+  app:
+    build: .
+    image: reserva-sala-reuniones:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-reservas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-reserva_salas}
+      TZ: America/Santiago
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

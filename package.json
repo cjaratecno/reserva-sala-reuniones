@@ -1,0 +1,25 @@
+{
+  "name": "reserva-sala-reuniones",
+  "version": "1.0.0",
+  "description": "Sistema de reservas de salas de reuniones con SSO Microsoft 365 e invitaciones automáticas vía Microsoft Graph",
+  "main": "src/server.js",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:init": "node scripts/init-db.js",
+    "crear-admin": "node scripts/crear-admin.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^7.1.0",
+    "bcryptjs": "^2.4.3",
+    "connect-pg-simple": "^10.0.0",
+    "dotenv": "^18.0.8",
+    "express": "^4.22.3",
+    "express-session": "^1.19.0",
+    "pg": "^8.23.1"
+  }
+}

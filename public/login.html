@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ingresar · Reserva Sala de Reuniones · Tecnodata</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/img/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <meta name="theme-color" content="#151b2b">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="pagina-login">
+  <img class="login-marca-agua" src="/img/isotipo-blanco.png" alt="" aria-hidden="true">
+
+  <main class="login-layout">
+    <!-- Marca -->
+    <section class="login-marca">
+      <img class="login-logo" src="/img/logo-tecnodata-blanco.png" alt="Tecnodata S.A." width="320" height="67">
+      <h1>Reserva Sala de Reuniones</h1>
+      <p class="login-lema">Agenda reuniones, reserva la sala y envía las invitaciones a Outlook en un solo paso.</p>
+      <ul class="login-beneficios">
+        <li><span class="beneficio-icono" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </span><span><b>Disponibilidad en tiempo real</b>Calendario con todas las reservas de la sala.</span></li>
+        <li><span class="beneficio-icono" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="m4 6 8 7 8-7"/></svg>
+        </span><span><b>Invitaciones automáticas</b>Los asistentes reciben la reunión en su calendario.</span></li>
+        <li><span class="beneficio-icono" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.5-3v10L15 14"/><rect x="3" y="6" width="12" height="12" rx="2"/></svg>
+        </span><span><b>Microsoft Teams</b>Agrega el enlace de la videollamada con un clic.</span></li>
+      </ul>
+    </section>
+
+    <!-- Acceso -->
+    <section class="login-card" aria-labelledby="tituloAcceso">
+      <h2 id="tituloAcceso">Iniciar sesión</h2>
+      <p class="sub">Ingrese con su cuenta corporativa de Tecnodata.</p>
+
+      <div id="error" class="alerta" role="alert" hidden></div>
+
+      <div id="bloqueSso">
+        <a class="btn btn-ms" href="/auth/login">
+          <span class="ms-logo" aria-hidden="true"><span></span><span></span><span></span><span></span></span>
+          Continuar con Microsoft 365
+        </a>
+        <div class="sep">o</div>
+      </div>
+      <p id="sinSso" class="sub" hidden>El acceso con Microsoft 365 aún no está habilitado.</p>
+
+      <details id="adminBox" class="admin-acceso">
+        <summary>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          Acceso administrador
+        </summary>
+        <form id="formAdmin" autocomplete="on">
+          <label>Usuario
+            <input name="usuario" autocomplete="username" required>
+          </label>
+          <label>Contraseña
+            <span class="campo-clave">
+              <input name="password" type="password" autocomplete="current-password" required>
+              <button type="button" class="ver-clave" id="verClave" aria-label="Mostrar contraseña">Mostrar</button>
+            </span>
+          </label>
+          <button class="btn btn-bloque" type="submit">Ingresar como administrador</button>
+        </form>
+      </details>
+    </section>
+  </main>
+
+  <footer class="login-pie">© <span id="anio"></span> Tecnodata S.A. · Plataforma de Aplicaciones</footer>
+
+  <script>
+    const MENSAJES = {
+      sso_no_configurado: 'El inicio de sesión con Microsoft 365 no está configurado.',
+      estado_invalido: 'La sesión de inicio expiró. Intente nuevamente.',
+      microsoft: 'Microsoft rechazó el inicio de sesión. Intente nuevamente.',
+      dominio_no_permitido: 'Su cuenta no pertenece a un dominio autorizado.',
+      usuario_inactivo: 'Su usuario está deshabilitado. Contacte al administrador.',
+      interno: 'Ocurrió un error. Intente nuevamente.',
+    };
+    const errorBox = document.getElementById('error');
+    function mostrarError(msg) { errorBox.textContent = msg; errorBox.hidden = false; }
+
+    document.getElementById('anio').textContent = new Date().getFullYear();
+
+    const codigo = new URLSearchParams(location.search).get('error');
+    if (codigo) mostrarError(MENSAJES[codigo] || MENSAJES.interno);
+
+    fetch('/auth/estado')
+      .then((r) => r.json())
+      .then(({ sso }) => {
+        if (sso) return;
+        document.getElementById('bloqueSso').hidden = true;
+        document.getElementById('sinSso').hidden = false;
+        document.getElementById('adminBox').open = true;
+      })
+      .catch(() => {});
+
+    document.getElementById('verClave').addEventListener('click', (e) => {
+      const input = document.querySelector('#formAdmin [name=password]');
+      const visible = input.type === 'text';
+      input.type = visible ? 'password' : 'text';
+      e.target.textContent = visible ? 'Mostrar' : 'Ocultar';
+      e.target.setAttribute('aria-label', visible ? 'Mostrar contraseña' : 'Ocultar contraseña');
+    });
+
+    document.getElementById('formAdmin').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const boton = e.target.querySelector('button[type=submit]');
+      boton.disabled = true;
+      boton.textContent = 'Ingresando…';
+      errorBox.hidden = true;
+      try {
+        const res = await fetch('/auth/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'No se pudo iniciar sesión');
+        location.href = '/';
+      } catch (err) {
+        mostrarError(err.message);
+        boton.disabled = false;
+        boton.textContent = 'Ingresar como administrador';
+      }
+    });
+  </script>
+</body>
+</html>

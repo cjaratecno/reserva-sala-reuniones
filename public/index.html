@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reserva Sala de Reuniones · Tecnodata</title>
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/img/favicon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="/img/apple-touch-icon.png">
+  <meta name="theme-color" content="#151b2b">
+  <link rel="stylesheet" href="/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/locales/es.global.min.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-marca">
+      <img src="/img/logo-tecnodata-blanco.png" alt="Tecnodata S.A." width="124" height="26">
+      <span class="divisor" aria-hidden="true"></span>
+      <h1>Reserva Sala de Reuniones</h1>
+    </div>
+    <div class="user">
+      <span id="userName"></span>
+      <span id="userRol" class="badge"></span>
+      <button id="btnSala" class="btn-sec" hidden>Sala</button>
+      <button id="btnConfig" class="btn-sec" hidden>Configuración</button>
+      <a href="/auth/logout" class="btn-sec">Cerrar sesión</a>
+    </div>
+  </header>
+  <div id="avisoAdmin" class="aviso" hidden></div>
+
+  <main class="layout">
+    <aside class="panel">
+      <button id="btnNueva" class="btn">+ Nueva reserva</button>
+      <div id="fichaSala" class="ficha-sala"></div>
+      <p id="hint" class="hint">Arrastre sobre el calendario para seleccionar un horario, o haga clic en una reserva para ver el detalle.</p>
+    </aside>
+    <section class="cal-wrap"><div id="calendario"></div></section>
+  </main>
+
+  <!-- Nueva reserva -->
+  <dialog id="dlgReserva" class="ancho">
+    <form id="formReserva" method="dialog" novalidate>
+      <div class="dlg-head"><h2>Nueva reserva</h2><button type="button" class="dlg-close" data-cerrar aria-label="Cerrar">×</button></div>
+      <div class="dlg-body">
+        <label>Asunto de la reunión
+          <input name="titulo" maxlength="255" required placeholder="Ej: Revisión de proyecto">
+        </label>
+        <div class="row">
+          <label>Fecha <input type="date" name="fecha" required></label>
+          <label>Desde <input type="time" name="desde" step="900" required></label>
+          <label>Hasta <input type="time" name="hasta" step="900" required></label>
+        </div>
+        <div id="disponibilidad" class="disponibilidad" role="status" aria-live="polite" hidden></div>
+
+        <div class="buscador">
+          <label for="buscarPersona">Invitados</label>
+          <div class="buscador-fila">
+            <input id="buscarPersona" autocomplete="off" placeholder="Buscar por nombre o escribir un correo">
+            <button type="button" id="btnAgregarCorreo" class="btn-sec">Agregar</button>
+          </div>
+          <ul id="resultados" class="resultados" hidden></ul>
+        </div>
+        <div id="chips" class="chips"></div>
+        <div id="agenda" class="agenda" aria-live="polite" hidden></div>
+
+        <label>Descripción (opcional)
+          <textarea name="descripcion" rows="3" maxlength="4000"></textarea>
+        </label>
+        <label class="check"><input type="checkbox" name="teams"> Incluir enlace de reunión de Microsoft Teams</label>
+        <p class="hint">Cada invitado recibirá la invitación de Outlook. La reunión quedará en su calendario y en el de los invitados.</p>
+      </div>
+      <div class="dlg-foot">
+        <button type="button" class="btn-sec" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn" id="btnGuardar">Reservar y enviar invitaciones</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Detalle -->
+  <dialog id="dlgDetalle">
+    <div class="dlg-head"><h2 id="detTitulo"></h2><button type="button" class="dlg-close" data-cerrar aria-label="Cerrar">×</button></div>
+    <div class="dlg-body"><dl id="detCuerpo" class="det"></dl></div>
+    <div class="dlg-foot">
+      <button type="button" class="btn-sec" data-cerrar>Cerrar</button>
+      <button type="button" class="btn-danger" id="btnCancelarReserva" hidden>Cancelar reserva</button>
+    </div>
+  </dialog>
+
+  <!-- Confirmar cancelación -->
+  <dialog id="dlgCancelar" class="angosto">
+    <form id="formCancelar" method="dialog" novalidate>
+      <div class="dlg-head"><h2>Cancelar reserva</h2><button type="button" class="dlg-close" data-cerrar aria-label="Cerrar">×</button></div>
+      <div class="dlg-body">
+        <div class="confirmacion">
+          <span class="confirmacion-icono" aria-hidden="true">!</span>
+          <div>
+            <p class="confirmacion-titulo" id="cancelarTitulo"></p>
+            <p class="hint" id="cancelarDetalle"></p>
+          </div>
+        </div>
+        <p class="hint">Se liberará la sala y se enviará la cancelación por Outlook a todos los invitados.</p>
+        <label>Motivo (opcional, se incluye en el aviso a los invitados)
+          <textarea name="motivo" rows="3" maxlength="1000" placeholder="Ej: La reunión se reprograma para la próxima semana"></textarea>
+        </label>
+      </div>
+      <div class="dlg-foot">
+        <button type="button" class="btn-sec" data-cerrar>Volver</button>
+        <button type="submit" class="btn-danger" id="btnConfirmarCancelar">Sí, cancelar reserva</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Datos de la sala (admin) -->
+  <dialog id="dlgSala">
+    <form id="formSala" novalidate>
+      <div class="dlg-head"><h2>Sala de reuniones</h2><button type="button" class="dlg-close" data-cerrar aria-label="Cerrar">×</button></div>
+      <div class="dlg-body">
+        <div class="row2">
+          <label>Nombre <input name="nombre" maxlength="100" required></label>
+          <label>Ubicación <input name="ubicacion" maxlength="200" placeholder="Ej: Piso 2, Oficina principal"></label>
+        </div>
+        <div class="row2">
+          <label>Capacidad (personas) <input type="number" name="capacidad" min="1"></label>
+          <label>Color en el calendario <input type="color" name="color" value="#2563eb"></label>
+        </div>
+        <label>Correo del recurso en Exchange (opcional)
+          <input type="email" name="email_recurso" placeholder="sala@empresa.com">
+        </label>
+        <p class="hint" style="margin-top:-6px">Si la sala existe como buzón de recurso en Exchange, se agrega a cada reunión y aparece ocupada en Outlook.</p>
+        <label class="check"><input type="checkbox" name="activa" checked> Habilitada para reservas</label>
+        <p class="hint">Desmárquela si la sala está fuera de servicio: se podrán ver las reservas, pero no crear nuevas.</p>
+      </div>
+      <div class="dlg-foot">
+        <button type="button" class="btn-sec" data-cerrar>Cancelar</button>
+        <button type="submit" class="btn">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Configuración (admin) -->
+  <dialog id="dlgConfig" class="ancho">
+    <div class="dlg-head"><h2>Configuración</h2><button type="button" class="dlg-close" data-cerrar aria-label="Cerrar">×</button></div>
+    <nav class="tabs" role="tablist">
+      <button type="button" class="tab activa" data-tab="tabSso">Microsoft 365 (SSO)</button>
+      <button type="button" class="tab" data-tab="tabAdmins">Cuentas locales</button>
+      <button type="button" class="tab" data-tab="tabPassword">Mi contraseña</button>
+    </nav>
+
+    <!-- SSO -->
+    <section id="tabSso" class="dlg-body tab-panel">
+      <div id="ssoEstado" class="estado"></div>
+      <form id="formSso" novalidate autocomplete="off">
+        <label>URI de redirección (regístrela en Azure → Autenticación → Web)
+          <div class="buscador-fila">
+            <input id="ssoRedirect" readonly>
+            <button type="button" class="btn-sec" id="btnCopiarRedirect">Copiar</button>
+          </div>
+        </label>
+        <label>Id. de directorio (tenant)
+          <input name="tenantId" placeholder="00000000-0000-0000-0000-000000000000" spellcheck="false">
+        </label>
+        <label>Id. de aplicación (cliente)
+          <input name="clientId" placeholder="00000000-0000-0000-0000-000000000000" spellcheck="false">
+        </label>
+        <div class="row2">
+          <label>Secreto de cliente (Valor)
+            <input name="clientSecret" type="password" autocomplete="new-password" spellcheck="false">
+          </label>
+          <label>Vence el
+            <input name="secretoVence" type="date">
+          </label>
+        </div>
+        <p id="ssoSecretoHint" class="hint" style="margin-top:-6px"></p>
+        <label>Dominios de correo permitidos (opcional, separados por coma)
+          <input name="dominiosPermitidos" placeholder="empresa.cl, empresa.com">
+        </label>
+        <fieldset class="opcional">
+          <legend>Correo al solicitante</legend>
+          <label class="check"><input type="checkbox" name="enviarConfirmacion"> Enviar correo de confirmación a quien reserva</label>
+          <p class="hint">Outlook envía la invitación solo a los asistentes, nunca al organizador. Esta opción le envía a quien reserva un resumen por correo.
+            Requiere el permiso delegado <b>Mail.Send</b> con consentimiento de administrador en Azure. Los usuarios deben volver a iniciar sesión después de activarlo.</p>
+        </fieldset>
+        <fieldset class="opcional">
+          <legend>Permisos de aplicación (opcional)</legend>
+          <label class="check"><input type="checkbox" name="permisosAplicacion"> Se otorgaron permisos de aplicación (Calendars.ReadWrite, User.Read.All)</label>
+          <p class="hint">Permite a los administradores cancelar reservas de otros avisando a los invitados y buscar personas.</p>
+          <label>Buzón organizador para reservas de administradores
+            <input name="buzonAdmin" type="email" placeholder="reservas@empresa.cl">
+          </label>
+        </fieldset>
+        <p id="ssoActualizado" class="hint"></p>
+        <div class="acciones">
+          <button type="button" class="btn-sec" id="btnProbarSso">Probar conexión</button>
+          <button type="submit" class="btn">Guardar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Administradores -->
+    <section id="tabAdmins" class="dlg-body tab-panel" hidden>
+      <table class="salas">
+        <thead><tr><th>Cuenta</th><th>Perfil</th><th>Último acceso</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="tablaAdmins"></tbody>
+      </table>
+      <form id="formAdmin" novalidate autocomplete="off">
+        <h3 id="formAdminTitulo" class="subtitulo">Nueva cuenta</h3>
+        <input type="hidden" name="id">
+        <div class="row2">
+          <label>Usuario <input name="username" maxlength="50" autocomplete="off" spellcheck="false"></label>
+          <label>Nombre <input name="nombre" maxlength="200"></label>
+        </div>
+        <div class="row2">
+          <label>Correo (opcional) <input type="email" name="email"></label>
+          <label><span id="lblAdminPass">Contraseña (mín. 8)</span> <input type="password" name="password" autocomplete="new-password"></label>
+        </div>
+        <label>Perfil
+          <select name="perfil">
+            <option value="admin">Administrador: gestiona todo y puede cancelar cualquier reserva</option>
+            <option value="visor">Solo visualización: ve el calendario, no crea ni cancela (ej. Recepción)</option>
+          </select>
+        </label>
+        <label class="check" id="chkAdminActivo" hidden><input type="checkbox" name="activo" checked> Activo</label>
+        <div class="acciones">
+          <button type="button" class="btn-sec" id="btnAdminLimpiar">Limpiar</button>
+          <button type="submit" class="btn">Guardar administrador</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Mi contraseña -->
+    <section id="tabPassword" class="dlg-body tab-panel" hidden>
+      <form id="formPassword" novalidate>
+        <label>Contraseña actual <input type="password" name="actual" autocomplete="current-password"></label>
+        <label>Nueva contraseña (mín. 8 caracteres) <input type="password" name="nueva" autocomplete="new-password"></label>
+        <label>Repetir nueva contraseña <input type="password" name="repetir" autocomplete="new-password"></label>
+        <div class="acciones"><button type="submit" class="btn">Cambiar contraseña</button></div>
+      </form>
+    </section>
+  </dialog>
+
+  <div id="toast" role="status"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
