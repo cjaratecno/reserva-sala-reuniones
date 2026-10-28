@@ -13,10 +13,10 @@ COPY src ./src
 COPY public ./public
 
 USER node
-EXPOSE 3000
+EXPOSE 3001
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3000/health || exit 1
+  CMD wget -qO- http://127.0.0.1:3001/health || exit 1
 
 # Al arrancar: crea/actualiza las tablas (incluye el admin inicial) y levanta el servidor
 CMD ["sh", "-c", "node scripts/init-db.js && exec node src/server.js"]

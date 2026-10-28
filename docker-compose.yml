@@ -27,7 +27,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      PORT: 3000
+      PORT: 3001
       DB_HOST: db
       DB_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER:-reservas}
@@ -35,7 +35,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-reserva_salas}
       TZ: America/Santiago
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "${APP_PORT:-3001}:3001"
     depends_on:
       db:
         condition: service_healthy
